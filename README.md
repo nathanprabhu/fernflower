@@ -1,3 +1,5 @@
+Introduced Synchronized constructs in this decompiler and increased the running time and performance
+
 ## About fernflower
 
 Fernflower is the first actually working analytical decompiler for Java and 
