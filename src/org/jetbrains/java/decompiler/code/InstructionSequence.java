@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 JetBrains s.r.o.
+ * Copyright 2000-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package org.jetbrains.java.decompiler.code;
 import org.jetbrains.java.decompiler.code.interpreter.Util;
 import org.jetbrains.java.decompiler.main.DecompilerContext;
 import org.jetbrains.java.decompiler.struct.StructContext;
-import org.jetbrains.java.decompiler.util.TextUtil;
+import org.jetbrains.java.decompiler.util.InterpreterUtil;
 import org.jetbrains.java.decompiler.util.VBStyleCollection;
 
 import java.io.DataOutputStream;
@@ -34,19 +34,11 @@ public abstract class InstructionSequence {
   // private fields
   // *****************************************************************************
 
-  protected final VBStyleCollection<Instruction, Integer> collinstr;
+  protected VBStyleCollection<Instruction, Integer> collinstr = new VBStyleCollection<Instruction, Integer>();
 
   protected int pointer = 0;
 
-  protected ExceptionTable exceptionTable = ExceptionTable.EMPTY;
-
-  protected InstructionSequence() {
-    this(new VBStyleCollection<>());
-  }
-
-  protected InstructionSequence(VBStyleCollection<Instruction, Integer> collinstr) {
-    this.collinstr = collinstr;
-  }
+  protected ExceptionTable exceptionTable = new ExceptionTable();
 
   // *****************************************************************************
   // public methods
@@ -60,7 +52,7 @@ public abstract class InstructionSequence {
   public void clear() {
     collinstr.clear();
     pointer = 0;
-    exceptionTable = ExceptionTable.EMPTY;
+    exceptionTable = new ExceptionTable();
   }
 
   public void addInstruction(Instruction inst, int offset) {
@@ -79,12 +71,6 @@ public abstract class InstructionSequence {
 
   public void removeInstruction(int index) {
     collinstr.remove(index);
-  }
-
-  public void removeLast() {
-    if (!collinstr.isEmpty()) {
-      collinstr.remove(collinstr.size() - 1);
-    }
   }
 
   public Instruction getCurrentInstr() {
@@ -157,7 +143,7 @@ public int getOffset(int index) {
     StringBuilder buf = new StringBuilder();
 
     for (int i = 0; i < collinstr.size(); i++) {
-    buf.append(TextUtil.getIndentString(indent));
+    buf.append(InterpreterUtil.getIndentString(indent));
       buf.append(collinstr.getKey(i).intValue());
       buf.append(": ");
       buf.append(collinstr.get(i).toString());
@@ -186,31 +172,34 @@ public int getOffset(int index) {
 
   public void sortHandlers(final StructContext context) {
 
-    Collections.sort(exceptionTable.getHandlers(), (handler0, handler1) -> {
+    Collections.sort(exceptionTable.getHandlers(), new Comparator<ExceptionHandler>() {
 
-      if (handler0.to == handler1.to) {
-        if (handler0.exceptionClass == null) {
-          return 1;
-        }
-        else {
-          if (handler1.exceptionClass == null) {
-            return -1;
-          }
-          else if (handler0.exceptionClass.equals(handler1.exceptionClass)) {
-            return (handler0.from > handler1.from) ? -1 : 1; // invalid code
+      public int compare(ExceptionHandler handler0, ExceptionHandler handler1) {
+
+        if (handler0.to == handler1.to) {
+          if (handler0.exceptionClass == null) {
+            return 1;
           }
           else {
-            if (Util.instanceOf(context, handler0.exceptionClass, handler1.exceptionClass)) {
+            if (handler1.exceptionClass == null) {
               return -1;
             }
+            else if (handler0.exceptionClass.equals(handler1.exceptionClass)) {
+              return (handler0.from > handler1.from) ? -1 : 1; // invalid code
+            }
             else {
-              return 1;
+              if (Util.instanceOf(context, handler0.exceptionClass, handler1.exceptionClass)) {
+                return -1;
+              }
+              else {
+                return 1;
+              }
             }
           }
         }
-      }
-      else {
-        return (handler0.to > handler1.to) ? 1 : -1;
+        else {
+          return (handler0.to > handler1.to) ? 1 : -1;
+        }
       }
     });
   }

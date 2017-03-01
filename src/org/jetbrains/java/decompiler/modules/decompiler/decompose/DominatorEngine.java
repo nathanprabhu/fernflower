@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2015 JetBrains s.r.o.
+ * Copyright 2000-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,9 +23,9 @@ import java.util.List;
 
 public class DominatorEngine {
 
-  private final Statement statement;
+  private Statement statement;
 
-  private final VBStyleCollection<Integer, Integer> colOrderedIDoms = new VBStyleCollection<>();
+  private VBStyleCollection<Integer, Integer> colOrderedIDoms = new VBStyleCollection<Integer, Integer>();
 
 
   public DominatorEngine(Statement statement) {

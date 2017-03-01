@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2015 JetBrains s.r.o.
+ * Copyright 2000-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,7 +69,7 @@ public class ConstantsUtil {
   }
 
 
-  private static final String[] opcodeNames = {
+  private static String[] opcodeNames = {
     "nop",                                //    "nop",
     "aconst_null",                //    "aconst_null",
     "iconst_m1",                        //    "iconst_m1",
@@ -275,7 +275,7 @@ public class ConstantsUtil {
     "jsr_w"                        //    "jsr_w"
   };
 
-  private static final Class[] opcodeClasses = {
+  private static Class[] opcodeClasses = {
     null,                                //    "nop",
     null,                        //    "aconst_null",
     null,                        //    "iconst_m1",

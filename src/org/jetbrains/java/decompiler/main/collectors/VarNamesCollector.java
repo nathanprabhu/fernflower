@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2015 JetBrains s.r.o.
+ * Copyright 2000-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,15 @@
 package org.jetbrains.java.decompiler.main.collectors;
 
 import java.util.HashSet;
-import java.util.Set;
 
 public class VarNamesCollector {
 
-  private final Set<String> usedNames = new HashSet<>();
+  private HashSet<String> usedNames = new HashSet<String>();
 
-  public VarNamesCollector() { }
+  public VarNamesCollector() {
+  }
 
-  public VarNamesCollector(Set<String> setNames) {
+  public VarNamesCollector(HashSet<String> setNames) {
     usedNames.addAll(setNames);
   }
 
@@ -37,10 +37,15 @@ public class VarNamesCollector {
   }
 
   public String getFreeName(String proposition) {
+
     while (usedNames.contains(proposition)) {
       proposition += "x";
     }
     usedNames.add(proposition);
     return proposition;
+  }
+
+  public HashSet<String> getUsedNames() {
+    return usedNames;
   }
 }

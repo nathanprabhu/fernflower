@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 JetBrains s.r.o.
+ * Copyright 2000-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,49 +37,78 @@ import java.util.*;
 import java.util.Map.Entry;
 
 public class ClassReference14Processor {
-  private static final ExitExprent BODY_EXPR;
-  private static final ExitExprent HANDLER_EXPR;
 
-  static {
-    InvocationExprent invFor = new InvocationExprent();
-    invFor.setName("forName");
-    invFor.setClassname("java/lang/Class");
-    invFor.setStringDescriptor("(Ljava/lang/String;)Ljava/lang/Class;");
-    invFor.setDescriptor(MethodDescriptor.parseDescriptor("(Ljava/lang/String;)Ljava/lang/Class;"));
-    invFor.setStatic(true);
-    invFor.setLstParameters(Collections.singletonList(new VarExprent(0, VarType.VARTYPE_STRING, null)));
-    BODY_EXPR = new ExitExprent(ExitExprent.EXIT_RETURN, invFor, VarType.VARTYPE_CLASS, null);
+  public ExitExprent bodyexprent;
 
-    InvocationExprent ctor = new InvocationExprent();
-    ctor.setName(CodeConstants.INIT_NAME);
-    ctor.setClassname("java/lang/NoClassDefFoundError");
-    ctor.setStringDescriptor("()V");
-    ctor.setFunctype(InvocationExprent.TYP_INIT);
-    ctor.setDescriptor(MethodDescriptor.parseDescriptor("()V"));
+  public ExitExprent handlerexprent;
 
-    NewExprent newExpr = new NewExprent(new VarType(CodeConstants.TYPE_OBJECT, 0, "java/lang/NoClassDefFoundError"), new ArrayList<>(), null);
-    newExpr.setConstructor(ctor);
 
-    InvocationExprent invCause = new InvocationExprent();
-    invCause.setName("initCause");
-    invCause.setClassname("java/lang/NoClassDefFoundError");
-    invCause.setStringDescriptor("(Ljava/lang/Throwable;)Ljava/lang/Throwable;");
-    invCause.setDescriptor(MethodDescriptor.parseDescriptor("(Ljava/lang/Throwable;)Ljava/lang/Throwable;"));
-    invCause.setInstance(newExpr);
-    invCause.setLstParameters(
-      Collections.singletonList(new VarExprent(2, new VarType(CodeConstants.TYPE_OBJECT, 0, "java/lang/ClassNotFoundException"), null)));
+  public ClassReference14Processor() {
 
-    HANDLER_EXPR = new ExitExprent(ExitExprent.EXIT_THROW, invCause, null, null);
+    InvocationExprent invfor = new InvocationExprent();
+    invfor.setName("forName");
+    invfor.setClassname("java/lang/Class");
+    invfor.setStringDescriptor("(Ljava/lang/String;)Ljava/lang/Class;");
+    invfor.setDescriptor(MethodDescriptor.parseDescriptor("(Ljava/lang/String;)Ljava/lang/Class;"));
+    invfor.setStatic(true);
+    invfor.setLstParameters(Arrays.asList(new Exprent[]{new VarExprent(0, VarType.VARTYPE_STRING, null)}));
+
+    bodyexprent = new ExitExprent(ExitExprent.EXIT_RETURN,
+                                  invfor,
+                                  VarType.VARTYPE_CLASS);
+
+    InvocationExprent constr = new InvocationExprent();
+    constr.setName("<init>");
+    constr.setClassname("java/lang/NoClassDefFoundError");
+    constr.setStringDescriptor("()V");
+    constr.setFunctype(InvocationExprent.TYP_INIT);
+    constr.setDescriptor(MethodDescriptor.parseDescriptor("()V"));
+
+    NewExprent newexpr =
+      new NewExprent(new VarType(CodeConstants.TYPE_OBJECT, 0, "java/lang/NoClassDefFoundError"), new ArrayList<Exprent>());
+    newexpr.setConstructor(constr);
+
+    InvocationExprent invcause = new InvocationExprent();
+    invcause.setName("initCause");
+    invcause.setClassname("java/lang/NoClassDefFoundError");
+    invcause.setStringDescriptor("(Ljava/lang/Throwable;)Ljava/lang/Throwable;");
+    invcause.setDescriptor(MethodDescriptor.parseDescriptor("(Ljava/lang/Throwable;)Ljava/lang/Throwable;"));
+    invcause.setInstance(newexpr);
+    invcause.setLstParameters(
+      Arrays.asList(new Exprent[]{new VarExprent(2, new VarType(CodeConstants.TYPE_OBJECT, 0, "java/lang/ClassNotFoundException"), null)}));
+
+    handlerexprent = new ExitExprent(ExitExprent.EXIT_THROW,
+                                     invcause,
+                                     null);
   }
 
-  public static void processClassReferences(ClassNode node) {
+
+  public void processClassReferences(ClassNode node) {
+
+    ClassWrapper wrapper = node.wrapper;
+
+    //		int major_version = wrapper.getClassStruct().major_version;
+    //		int minor_version = wrapper.getClassStruct().minor_version;
+    //
+    //		if(major_version > 48 || (major_version == 48 && minor_version > 0)) {
+    //			// version 1.5 or above
+    //			return;
+    //		}
+
+    if (wrapper.getClassStruct().isVersionGE_1_5()) {
+      // version 1.5 or above
+      return;
+    }
+
     // find the synthetic method Class class$(String) if present
-    HashMap<ClassWrapper, MethodWrapper> mapClassMeths = new HashMap<>();
+    HashMap<ClassWrapper, MethodWrapper> mapClassMeths = new HashMap<ClassWrapper, MethodWrapper>();
     mapClassMethods(node, mapClassMeths);
+
     if (mapClassMeths.isEmpty()) {
       return;
     }
-    HashSet<ClassWrapper> setFound = new HashSet<>();
+
+    HashSet<ClassWrapper> setFound = new HashSet<ClassWrapper>();
     processClassRec(node, mapClassMeths, setFound);
 
     if (!setFound.isEmpty()) {
@@ -94,7 +123,7 @@ public class ClassReference14Processor {
                                       final HashMap<ClassWrapper, MethodWrapper> mapClassMeths,
                                       final HashSet<ClassWrapper> setFound) {
 
-    final ClassWrapper wrapper = node.getWrapper();
+    final ClassWrapper wrapper = node.wrapper;
 
     // search code
     for (MethodWrapper meth : wrapper.getMethods()) {
@@ -131,7 +160,7 @@ public class ClassReference14Processor {
 
           String cl = isClass14Invocation(exprent, ent.getKey(), ent.getValue());
           if (cl != null) {
-            initializers.set(i, new ConstExprent(VarType.VARTYPE_CLASS, cl.replace('.', '/'), exprent.bytecode));
+            initializers.set(i, new ConstExprent(VarType.VARTYPE_CLASS, cl.replace('.', '/')));
             setFound.add(ent.getKey());
           }
         }
@@ -144,10 +173,10 @@ public class ClassReference14Processor {
     }
   }
 
-  private static void mapClassMethods(ClassNode node, Map<ClassWrapper, MethodWrapper> map) {
+  private void mapClassMethods(ClassNode node, Map<ClassWrapper, MethodWrapper> map) {
     boolean noSynthFlag = DecompilerContext.getOption(IFernflowerPreferences.SYNTHETIC_NOT_SET);
 
-    ClassWrapper wrapper = node.getWrapper();
+    ClassWrapper wrapper = node.wrapper;
 
     for (MethodWrapper method : wrapper.getMethods()) {
       StructMethod mt = method.methodStruct;
@@ -161,14 +190,14 @@ public class ClassReference14Processor {
           CatchStatement cst = (CatchStatement)root.getFirst();
           if (cst.getStats().size() == 2 && cst.getFirst().type == Statement.TYPE_BASICBLOCK &&
               cst.getStats().get(1).type == Statement.TYPE_BASICBLOCK &&
-              cst.getVars().get(0).getVarType().equals(new VarType(CodeConstants.TYPE_OBJECT, 0, "java/lang/ClassNotFoundException"))) {
+              cst.getVars().get(0).getVartype().equals(new VarType(CodeConstants.TYPE_OBJECT, 0, "java/lang/ClassNotFoundException"))) {
 
             BasicBlockStatement body = (BasicBlockStatement)cst.getFirst();
             BasicBlockStatement handler = (BasicBlockStatement)cst.getStats().get(1);
 
             if (body.getExprents().size() == 1 && handler.getExprents().size() == 1) {
-              if (BODY_EXPR.equals(body.getExprents().get(0)) &&
-                  HANDLER_EXPR.equals(handler.getExprents().get(0))) {
+              if (bodyexprent.equals(body.getExprents().get(0)) &&
+                  handlerexprent.equals(handler.getExprents().get(0))) {
                 map.put(wrapper, method);
                 break;
               }
@@ -196,7 +225,7 @@ public class ClassReference14Processor {
       for (Exprent expr : exprent.getAllExprents()) {
         String cl = isClass14Invocation(expr, wrapper, meth);
         if (cl != null) {
-          exprent.replaceExprent(expr, new ConstExprent(VarType.VARTYPE_CLASS, cl.replace('.', '/'), expr.bytecode));
+          exprent.replaceExprent(expr, new ConstExprent(VarType.VARTYPE_CLASS, cl.replace('.', '/')));
           found = true;
           res = true;
           break;
@@ -218,13 +247,13 @@ public class ClassReference14Processor {
 
     if (exprent.type == Exprent.EXPRENT_FUNCTION) {
       FunctionExprent fexpr = (FunctionExprent)exprent;
-      if (fexpr.getFuncType() == FunctionExprent.FUNCTION_IIF) {
+      if (fexpr.getFunctype() == FunctionExprent.FUNCTION_IIF) {
         if (fexpr.getLstOperands().get(0).type == Exprent.EXPRENT_FUNCTION) {
           FunctionExprent headexpr = (FunctionExprent)fexpr.getLstOperands().get(0);
-          if (headexpr.getFuncType() == FunctionExprent.FUNCTION_EQ) {
+          if (headexpr.getFunctype() == FunctionExprent.FUNCTION_EQ) {
             if (headexpr.getLstOperands().get(0).type == Exprent.EXPRENT_FIELD &&
                 headexpr.getLstOperands().get(1).type == Exprent.EXPRENT_CONST &&
-                ((ConstExprent)headexpr.getLstOperands().get(1)).getConstType().equals(VarType.VARTYPE_NULL)) {
+                ((ConstExprent)headexpr.getLstOperands().get(1)).getConsttype().equals(VarType.VARTYPE_NULL)) {
 
               FieldExprent field = (FieldExprent)headexpr.getLstOperands().get(0);
               ClassNode fieldnode = DecompilerContext.getClassProcessor().getMapRootClasses().get(field.getClassname());

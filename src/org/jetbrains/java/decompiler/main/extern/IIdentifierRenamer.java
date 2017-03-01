@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2015 JetBrains s.r.o.
+ * Copyright 2000-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,21 @@
  */
 package org.jetbrains.java.decompiler.main.extern;
 
+
 public interface IIdentifierRenamer {
 
-  enum Type {ELEMENT_CLASS, ELEMENT_FIELD, ELEMENT_METHOD}
+  int ELEMENT_CLASS = 1;
 
-  boolean toBeRenamed(Type elementType, String className, String element, String descriptor);
+  int ELEMENT_FIELD = 2;
 
-  String getNextClassName(String fullName, String shortName);
+  int ELEMENT_METHOD = 3;
 
-  String getNextFieldName(String className, String field, String descriptor);
 
-  String getNextMethodName(String className, String method, String descriptor);
+  boolean toBeRenamed(int element_type, String classname, String element, String descriptor);
+
+  String getNextClassname(String fullname, String shortname);
+
+  String getNextFieldname(String classname, String field, String descriptor);
+
+  String getNextMethodname(String classname, String method, String descriptor);
 }

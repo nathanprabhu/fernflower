@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 JetBrains s.r.o.
+ * Copyright 2000-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 package org.jetbrains.java.decompiler.main.decompiler;
 
 import org.jetbrains.java.decompiler.main.extern.IFernflowerLogger;
-import org.jetbrains.java.decompiler.util.TextUtil;
+import org.jetbrains.java.decompiler.util.InterpreterUtil;
 
 import java.io.PrintStream;
 
@@ -33,78 +33,62 @@ public class PrintStreamLogger extends IFernflowerLogger {
   @Override
   public void writeMessage(String message, Severity severity) {
     if (accepts(severity)) {
-      stream.println(severity.prefix + TextUtil.getIndentString(indent) + message);
+      stream.println(severity.prefix + InterpreterUtil.getIndentString(indent) + message);
     }
   }
 
   @Override
   public void writeMessage(String message, Throwable t) {
+    writeMessage(message, Severity.ERROR);
     if (accepts(Severity.ERROR)) {
-      writeMessage(message, Severity.ERROR);
       t.printStackTrace(stream);
     }
   }
 
   @Override
   public void startReadingClass(String className) {
-    if (accepts(Severity.INFO)) {
-      writeMessage("Decompiling class " + className, Severity.INFO);
-      ++indent;
-    }
+    writeMessage("Decompiling class " + className, Severity.INFO);
+    ++indent;
   }
 
   @Override
   public void endReadingClass() {
-    if (accepts(Severity.INFO)) {
-      --indent;
-      writeMessage("... done", Severity.INFO);
-    }
+    --indent;
+    writeMessage("... done", Severity.INFO);
   }
 
   @Override
   public void startClass(String className) {
-    if (accepts(Severity.INFO)) {
-      writeMessage("Processing class " + className, Severity.TRACE);
-      ++indent;
-    }
+    writeMessage("Processing class " + className, Severity.TRACE);
+    ++indent;
   }
 
   @Override
   public void endClass() {
-    if (accepts(Severity.INFO)) {
-      --indent;
-      writeMessage("... proceeded", Severity.TRACE);
-    }
+    --indent;
+    writeMessage("... proceeded", Severity.TRACE);
   }
 
   @Override
   public void startMethod(String methodName) {
-    if (accepts(Severity.INFO)) {
-      writeMessage("Processing method " + methodName, Severity.TRACE);
-      ++indent;
-    }
+    writeMessage("Processing method " + methodName, Severity.TRACE);
+    ++indent;
   }
 
   public void endMethod() {
-    if (accepts(Severity.INFO)) {
-      --indent;
-      writeMessage("... proceeded", Severity.TRACE);
-    }
+    --indent;
+    writeMessage("... proceeded", Severity.TRACE);
   }
 
   @Override
   public void startWriteClass(String className) {
-    if (accepts(Severity.INFO)) {
-      writeMessage("Writing class " + className, Severity.TRACE);
-      ++indent;
-    }
+    writeMessage("Writing class " + className, Severity.TRACE);
+    ++indent;
   }
 
   @Override
   public void endWriteClass() {
-    if (accepts(Severity.INFO)) {
-      --indent;
-      writeMessage("... written", Severity.TRACE);
-    }
+    --indent;
+    writeMessage("... written", Severity.TRACE);
   }
 }

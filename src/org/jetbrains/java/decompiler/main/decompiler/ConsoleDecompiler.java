@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 JetBrains s.r.o.
+ * Copyright 2000-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@ import org.jetbrains.java.decompiler.util.InterpreterUtil;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 import java.util.zip.ZipEntry;
@@ -34,6 +36,14 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
 
   @SuppressWarnings("UseOfSystemOutOrSystemErr")
   public static void main(String[] args) {
+	  
+	  //creating threadpool
+		 
+	
+	  //modified code start
+	  long startTime = System.currentTimeMillis();
+	  //modified code ends
+	  
     if (args.length < 2) {
       System.out.println(
         "Usage: java -jar fernflower.jar [-<option>=<value>]* [<source>]+ <destination>\n" +
@@ -41,20 +51,21 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
       return;
     }
 
-    Map<String, Object> mapOptions = new HashMap<>();
-    List<File> lstSources = new ArrayList<>();
-    List<File> lstLibraries = new ArrayList<>();
+    Map<String, Object> mapOptions = new HashMap<String, Object>();
+    List<String> lstSources = new ArrayList<String>();
+    List<String> lstLibraries = new ArrayList<String>();
 
     boolean isOption = true;
     for (int i = 0; i < args.length - 1; ++i) { // last parameter - destination
       String arg = args[i];
 
-      if (isOption && arg.length() > 5 && arg.charAt(0) == '-' && arg.charAt(4) == '=') {
-        String value = arg.substring(5);
-        if ("true".equalsIgnoreCase(value)) {
+      if (isOption && arg.startsWith("-") &&
+          arg.length() > 5 && arg.charAt(4) == '=') {
+        String value = arg.substring(5).toUpperCase(Locale.US);
+        if ("TRUE".equals(value)) {
           value = "1";
         }
-        else if ("false".equalsIgnoreCase(value)) {
+        else if ("FALSE".equals(value)) {
           value = "0";
         }
 
@@ -64,10 +75,10 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
         isOption = false;
 
         if (arg.startsWith("-e=")) {
-          addPath(lstLibraries, arg.substring(3));
+          lstLibraries.add(arg.substring(3));
         }
         else {
-          addPath(lstSources, arg);
+          lstSources.add(arg);
         }
       }
     }
@@ -86,25 +97,20 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
     PrintStreamLogger logger = new PrintStreamLogger(System.out);
     ConsoleDecompiler decompiler = new ConsoleDecompiler(destination, mapOptions, logger);
 
-    for (File source : lstSources) {
-      decompiler.addSpace(source, true);
+    for (String source : lstSources) {
+      decompiler.addSpace(new File(source), true);
     }
-    for (File library : lstLibraries) {
-      decompiler.addSpace(library, false);
+    for (String library : lstLibraries) {
+      decompiler.addSpace(new File(library), false);
     }
 
     decompiler.decompileContext();
-  }
-
-  @SuppressWarnings("UseOfSystemOutOrSystemErr")
-  private static void addPath(List<File> list, String path) {
-    File file = new File(path);
-    if (file.exists()) {
-      list.add(file);
-    }
-    else {
-      System.out.println("warn: missing '" + path + "', ignored");
-    }
+    
+    //modified code start
+	  long endTime = System.currentTimeMillis();
+	  long difference = endTime-startTime;
+	  System.out.println("Runtime: "+difference);
+	  //modified code ends
   }
 
   // *******************************************************************
@@ -113,8 +119,8 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
 
   private final File root;
   private final Fernflower fernflower;
-  private final Map<String, ZipOutputStream> mapArchiveStreams = new HashMap<>();
-  private final Map<String, Set<String>> mapArchiveEntries = new HashMap<>();
+  private Map<String, ZipOutputStream> mapArchiveStreams = new HashMap<String, ZipOutputStream>();
+  private Map<String, Set<String>> mapArchiveEntries = new HashMap<String, Set<String>>();
 
   @SuppressWarnings("UseOfSystemOutOrSystemErr")
   public ConsoleDecompiler(File destination, Map<String, Object> options) {
@@ -150,10 +156,16 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
       return InterpreterUtil.getBytes(file);
     }
     else {
-      try (ZipFile archive = new ZipFile(file)) {
+      ZipFile archive = new ZipFile(file);
+      try {
         ZipEntry entry = archive.getEntry(internalPath);
-        if (entry == null) throw new IOException("Entry not found: " + internalPath);
+        if (entry == null) {
+          throw new IOException("Entry not found: " + internalPath);
+        }
         return InterpreterUtil.getBytes(archive, entry);
+      }
+      finally {
+        archive.close();
       }
     }
   }
@@ -185,10 +197,16 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
   }
 
   @Override
-  public void saveClassFile(String path, String qualifiedName, String entryName, String content, int[] mapping) {
+  public void saveClassFile(String path, String qualifiedName, String entryName, String content) {
     File file = new File(getAbsolutePath(path), entryName);
-    try (Writer out = new OutputStreamWriter(new FileOutputStream(file), "UTF8")) {
-      out.write(content);
+    try {
+      Writer out = new OutputStreamWriter(new FileOutputStream(file), "UTF8");
+      try {
+        out.write(content);
+      }
+      finally {
+        out.close();
+      }
     }
     catch (IOException ex) {
       DecompilerContext.getLogger().writeMessage("Cannot write class file " + file, ex);
@@ -226,14 +244,20 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
       return;
     }
 
-    try (ZipFile srcArchive = new ZipFile(new File(source))) {
-      ZipEntry entry = srcArchive.getEntry(entryName);
-      if (entry != null) {
-        try (InputStream in = srcArchive.getInputStream(entry)) {
+    try {
+      ZipFile srcArchive = new ZipFile(new File(source));
+      try {
+        ZipEntry entry = srcArchive.getEntry(entryName);
+        if (entry != null) {
+          InputStream in = srcArchive.getInputStream(entry);
           ZipOutputStream out = mapArchiveStreams.get(file);
           out.putNextEntry(new ZipEntry(entryName));
           InterpreterUtil.copyStream(in, out);
+          in.close();
         }
+      }
+      finally {
+        srcArchive.close();
       }
     }
     catch (IOException ex) {
@@ -266,7 +290,7 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
   private boolean checkEntry(String entryName, String file) {
     Set<String> set = mapArchiveEntries.get(file);
     if (set == null) {
-      mapArchiveEntries.put(file, set = new HashSet<>());
+      mapArchiveEntries.put(file, set = new HashSet<String>());
     }
 
     boolean added = set.add(entryName);
@@ -288,4 +312,6 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
       DecompilerContext.getLogger().writeMessage("Cannot close " + file, IFernflowerLogger.Severity.WARN);
     }
   }
+
+
 }

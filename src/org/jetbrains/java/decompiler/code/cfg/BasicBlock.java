@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2015 JetBrains s.r.o.
+ * Copyright 2000-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,15 +40,19 @@ public class BasicBlock implements IGraphNode {
 
   private InstructionSequence seq = new SimpleInstructionSequence();
 
-  private List<BasicBlock> preds = new ArrayList<>();
+  private List<BasicBlock> preds = new ArrayList<BasicBlock>();
 
-  private List<BasicBlock> succs = new ArrayList<>();
+  private List<BasicBlock> succs = new ArrayList<BasicBlock>();
 
-  private final List<Integer> instrOldOffsets = new ArrayList<>();
+  private List<Integer> instrOldOffsets = new ArrayList<Integer>();
 
-  private List<BasicBlock> predExceptions = new ArrayList<>();
+  private List<BasicBlock> predExceptions = new ArrayList<BasicBlock>();
 
-  private List<BasicBlock> succExceptions = new ArrayList<>();
+  private List<BasicBlock> succExceptions = new ArrayList<BasicBlock>();
+
+
+  public BasicBlock() {
+  }
 
   public BasicBlock(int id) {
     this.id = id;
@@ -59,10 +63,11 @@ public class BasicBlock implements IGraphNode {
   // *****************************************************************************
 
   public Object clone() {
-    BasicBlock block = new BasicBlock(id);
 
+    BasicBlock block = new BasicBlock();
+    block.id = id;
     block.setSeq(seq.clone());
-    block.instrOldOffsets.addAll(instrOldOffsets);
+    block.setInstrOldOffsets(new ArrayList<Integer>(instrOldOffsets));
 
     return block;
   }
@@ -118,7 +123,7 @@ public class BasicBlock implements IGraphNode {
     block.removePredecessor(this);
   }
 
-  // FIXME: unify block comparisons: id or direct equality
+  // FIXME: unify block comparisons: id or direkt equality
   public void replaceSuccessor(BasicBlock oldBlock, BasicBlock newBlock) {
     for (int i = 0; i < succs.size(); i++) {
       if (succs.get(i).id == oldBlock.id) {
@@ -215,8 +220,12 @@ public class BasicBlock implements IGraphNode {
     return instrOldOffsets;
   }
 
+  public void setInstrOldOffsets(List<Integer> instrInds) {
+    this.instrOldOffsets = instrInds;
+  }
+
   public List<? extends IGraphNode> getPredecessors() {
-    List<BasicBlock> lst = new ArrayList<>(preds);
+    List<BasicBlock> lst = new ArrayList<BasicBlock>(preds);
     lst.addAll(predExceptions);
     return lst;
   }
